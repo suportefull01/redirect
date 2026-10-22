@@ -1,0 +1,12 @@
+[build]
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+
+# Testa se o Netlify leu e aplicou este arquivo.
+[[redirects]]
+  from = "/teste-regras"
+  to = "/regras-ok.json"
+  status = 200
+  force = true

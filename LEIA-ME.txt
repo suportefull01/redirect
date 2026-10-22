@@ -1,0 +1,42 @@
+XTREAM API PROXY - NETLIFY 2.0
+====================================
+
+O objetivo da versao 2.0 e diagnosticar por que houve 404 na versao com _redirects.
+A API original nao foi testada em producao; outros provedores podem bloquear conexoes de data centers.
+
+INSTALACAO NO SEU REPOSITORIO GITHUB CONECTADO AO NETLIFY
+1. Extraia o ZIP e envie todo o CONTEUDO para a raiz do repositorio,
+   conservando a pasta public e a pasta netlify/functions.
+2. Apague o antigo arquivo _redirects do repositorio, se existir. O novo projeto
+   utiliza as rotas nativas de uma Netlify Function, nao aquele arquivo antigo.
+3. Confira em Netlify > Project configuration > Build settings se o repositorio
+   nao possui um diretorio-base divergente. netlify.toml define publish = public.
+4. Aguarde o deploy, consulte Deploys e verifique se a funcao "proxy" apareceu.
+5. Teste, nessa ordem:
+   - https://SEUSITE.netlify.app/               (painel do site)
+   - https://SEUSITE.netlify.app/teste-regras    (deve retornar JSON ok: true)
+   - https://SEUSITE.netlify.app/status          (deve retornar proxy: ativo)
+   - Consultar API no painel com usuario e senha
+   - Diagnosticar origem no painel em caso de falha
+
+CONFIGURACAO DE DNS
+Altere a constante DNS_ORIGINAL na primeira linha do arquivo:
+netlify/functions/proxy.mjs
+Ja configurada: http://dns.explouddev.com
+Nao coloque usuario e senha no codigo nem no repositorio.
+
+ENDPOINTS
+/player_api.php?username=...&password=...&action=get_live_categories
+/get.php?username=...&password=...&type=m3u_plus&output=ts
+/xmltv.php?username=...&password=...
+
+LIMITACOES
+- A funcao nao hospeda nem retransmite videos. Enderecos nos resultados
+  podem continuar indicando o servidor original.
+- Respostas de streaming da funcao podem chegar a limites de payload do Netlify,
+  e um catalogo ou XMLTV muito grande pode falhar mesmo com a origem funcionando.
+- HTTPS no Netlify nao transforma a conexao ao servidor HTTP em criptografada.
+- Se a origem retornar 404 para a funcao, o painel agora informara claramente
+  quem respondeu. Um 404 nao prova bloqueio; pode depender do servidor, DNS ou rota.
+- O Worker/Function e publico: quem souber seu endereco pode consumir recursos.
+  Use apenas para APIs que voce controla ou tem permissao para consultar.
