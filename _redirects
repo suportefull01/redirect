@@ -1,0 +1,5 @@
+# Proxy Xtream Codes / M3U: Netlify -> servidor original (HTTP)
+# As query strings (username, password, action, category_id, etc.) sao encaminhadas automaticamente.
+/player_api.php  http://dns.explouddev.com/player_api.php  200!
+/get.php         http://dns.explouddev.com/get.php         200!
+/xmltv.php       http://dns.explouddev.com/xmltv.php       200!
