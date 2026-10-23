@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Consulta direta da lista</title>
+  <style>
+    html { color-scheme: light dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      padding: 24px;
+      background: #101318;
+      color: #e5e7eb;
+      font: 16px/1.55 system-ui, sans-serif;
+      overflow-wrap: anywhere;
+    }
+    main { width: min(100%, 820px); text-align: center; }
+    #resultado { white-space: pre-wrap; font-family: ui-monospace, Consolas, monospace; }
+    #resultado a { color: #8ecbff; text-decoration: underline; }
+    #resultado.erro { color: #ffc4c4; }
+    #resultado.mensagem { color: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <main><div id="resultado" class="mensagem" role="status" aria-live="polite">Consultando API diretamente deste navegador...</div></main>
+  <script>
+  (() => {
+    'use strict';
+    const ENDPOINT = 'https://explouddev.com.br/api/canais/24horas';
+    const saida = document.getElementById('resultado');
+
+    function mostrarErro(mensagem) {
+      saida.className = 'erro';
+      saida.textContent = mensagem;
+    }
+
+    function montarLink(dados) {
+      if (!Array.isArray(dados) || !dados.length) {
+        throw new Error('A API não retornou uma lista de canais.');
+      }
+      // Exatamente o primeiro link do primeiro canal, sem procurar credenciais em outros canais.
+      const fonte = dados[0]?.sources?.[0]?.link;
+      if (typeof fonte !== 'string' || !fonte.trim()) {
+        throw new Error('O primeiro canal não possui sources[0].link.');
+      }
+      let url;
+      try { url = new URL(fonte); }
+      catch { throw new Error('O primeiro link não é uma URL válida.'); }
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        throw new Error('O primeiro link não usa HTTP/HTTPS.');
+      }
+      // Xtream: /live/USUARIO/SENHA/ID.m3u8, /movie/... ou /USUARIO/SENHA/ID.
+      const partes = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+      const pos = ['live', 'movie', 'series'].includes((partes[0] || '').toLowerCase()) ? 1 : 0;
+      const usuario = partes[pos];
+      const senha = partes[pos + 1];
+      const id = partes[pos + 2];
+      if (!usuario || !senha || !id) {
+        throw new Error('O primeiro link não segue o formato Xtream com usuário e senha no caminho.');
+      }
+      const resultado = new URL('/get.php', url.origin);
+      resultado.searchParams.set('username', usuario);
+      resultado.searchParams.set('password', senha);
+      resultado.searchParams.set('type', 'm3u_plus');
+      resultado.searchParams.set('output', 'ts');
+      return resultado.toString();
+    }
+
+    async function consultar() {
+      const ctrl = new AbortController();
+      const relogio = setTimeout(() => ctrl.abort(), 16000);
+      try {
+        // Esta requisição sai do navegador do visitante; não há Worker ou proxy.
+        const resposta = await fetch(ENDPOINT, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit',
+          cache: 'no-store',
+          redirect: 'follow',
+          signal: ctrl.signal
+        });
+        if (!resposta.ok) {
+          throw new Error('A API retornou HTTP ' + resposta.status + '.');
+        }
+        let dados;
+        try { dados = await resposta.json(); }
+        catch { throw new Error('A resposta da API não é um JSON válido.'); }
+        const link = montarLink(dados);
+        const ancora = document.createElement('a');
+        ancora.href = link;
+        ancora.textContent = link;
+        ancora.rel = 'noreferrer noopener';
+        ancora.referrerPolicy = 'no-referrer';
+        saida.className = '';
+        saida.replaceChildren(ancora);
+      } catch (erro) {
+        if (erro.name === 'AbortError') {
+          mostrarErro('A consulta demorou mais de 16 segundos. Recarregue a página para tentar novamente.');
+        } else if (erro instanceof TypeError) {
+          mostrarErro('O navegador não conseguiu ler a API. Possível bloqueio CORS, indisponibilidade de rede ou restrição do servidor. Sem autorização CORS, um site separado não consegue ler essa resposta diretamente.');
+        } else {
+          mostrarErro(erro.message || 'Falha ao consultar a API.');
+        }
+      } finally {
+        clearTimeout(relogio);
+      }
+    }
+
+    consultar();
+  })();
+  </script>
+</body>
+</html>
